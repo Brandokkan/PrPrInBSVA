@@ -1,8 +1,8 @@
 import stringdb
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent # project path
-DATA_DIR = Path("data").resolve()
+BASE_DIR = Path(__file__).resolve().parent.parent # project path
+DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
 
 
 def read_input():
@@ -46,16 +46,17 @@ def read_input():
     user_path_data = DATA_DIR / inp_string.strip()
     user_path_data = user_path_data.expanduser().resolve()
     if user_path.is_file():
-        with open(user_path, "r") as ppi_file:
+        with open(user_path, "r", encoding="utf-8") as ppi_file:
             protein_ids = ppi_file.readlines()
+            protein_ids = [pid.strip() for pid in protein_ids]
     elif user_path_data.is_file():
-        with open(user_path_data, "r") as ppi_file:
+        with open(user_path_data, "r", encoding="utf-8") as ppi_file:
             protein_ids = ppi_file.readlines()
+            protein_ids = [pid.strip() for pid in protein_ids]
     else:
         protein_ids = inp_string.split()
 
     return protein_ids
-
 
 
 def interaction_retrival():
@@ -73,17 +74,19 @@ def interaction_retrival():
 
 
 def main(): # only used for testing. Delete later
-    genes = ['TP53', 'BRCA1', 'FANCD1', 'FANCL', "9606.ENSP00000497910"]
-    string_ids = stringdb.get_string_ids(genes)
-    print(string_ids)
-    enrichment_df = stringdb.get_enrichment(string_ids.stringId)
-    # print(enrichment_df.loc[enrichment_df["fdr"] == min(enrichment_df["fdr"])]["description"].values[0])
-    # print(enrichment_df)
-    ppi_df = stringdb.get_ppi_enrichment(string_ids["stringId"])
-    network_df = stringdb.get_network(string_ids["stringId"])
-    # print(ppi_df)
-    print(network_df)
+    # genes = ['TP53', 'BRCA1', 'FANCD1', 'FANCL', "9606.ENSP00000497910"]
+    # string_ids = stringdb.get_string_ids(genes)
+    # print(string_ids)
+    # enrichment_df = stringdb.get_enrichment(string_ids.stringId)
+    # # print(enrichment_df.loc[enrichment_df["fdr"] == min(enrichment_df["fdr"])]["description"].values[0])
+    # # print(enrichment_df)
+    # ppi_df = stringdb.get_ppi_enrichment(string_ids["stringId"])
+    # network_df = stringdb.get_network(string_ids["stringId"])
+    # # print(ppi_df)
+    # print(network_df)
+
+    print(read_input())
 
 if __name__ == "__main__": # only used for testing. Delete later
-    # main()
+    main()
     pass
