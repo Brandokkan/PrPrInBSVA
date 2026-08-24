@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent # project path
 DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
 
 
-def read_input():
+def read_input(verbose = False):
     """Reads and proces the user input to obtain the proteins identifiers
 
     This function accepts, reads and checks the user input 
@@ -31,7 +31,7 @@ def read_input():
                         "by spaces or a path (global or relative) to a file containing\n" \
                         "the identifiers of the proteins on separate lines\n")
         while True:
-            confirm = input("do you confirm your input (y/n): ")
+            confirm = input("\ndo you confirm your input (y/n): ")
             if confirm.lower() == "y":
                 print("input confirmed")
                 in_input_loop = False
@@ -56,10 +56,14 @@ def read_input():
     else:
         protein_ids = inp_string.split()
 
+    if verbose:
+        print() # spacing
+        print(protein_ids)
+
     return protein_ids
 
 
-def interaction_retrival():
+def interaction_retrival(verbose = False):
     """Complete pipeline from input to protein interaction data
 
     Retrives the protein interaction data of interest from
@@ -70,9 +74,36 @@ def interaction_retrival():
     pandas.DataFrame
         DataFrame containing the interaction data between the proteins
     """
+    # input check
+    checking_string_id = True
+    while checking_string_id:
+        protein_ids = read_input()
+        string_ids = stringdb.get_string_ids(protein_ids)
+        print() # spacing
+        print(string_ids)
+        while True:
+            are_string_ok = input("\nare the above string ids the intended ones (y/n)?: ")
+            if are_string_ok.lower() == "y":
+                print("string ids confirmed")
+                checking_string_id = False
+                break
+            elif are_string_ok.lower() == "n":
+                print("string ids rejected. re-insert the identifiers")
+                break
+            else:
+                print("invalid character. please insert y or n")
 
-    protein_ids = read_input()
+    # transform into interaction data
+    network_df = stringdb.get_network(string_ids["stringId"])
+    if verbose:
+        print() # spacing
+        print(network_df)
+    return network_df
 
+
+class RetrivePPI:
+    def get_raw_data(self):
+        return self # enables chaning multiple methods togheter in the final object
 
 
 def main(): # only used for testing. Delete later
@@ -87,7 +118,7 @@ def main(): # only used for testing. Delete later
     # # print(ppi_df)
     # print(network_df)
 
-    print(read_input())
+    interaction_retrival(True)
 
 if __name__ == "__main__": # only used for testing. Delete later
     main()
