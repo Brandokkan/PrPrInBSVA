@@ -71,6 +71,8 @@ def interaction_retrival():
         DataFrame containing the interaction data between the proteins
     """
 
+    protein_ids = read_input()
+
 
 
 def main(): # only used for testing. Delete later
