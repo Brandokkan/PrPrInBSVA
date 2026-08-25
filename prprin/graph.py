@@ -1,5 +1,6 @@
 import networkx as nx
 from pathlib import Path
+from pandas import DataFrame
 
 BASE_DIR = Path(__file__).resolve().parent.parent # project path
 DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
@@ -15,7 +16,7 @@ class GraphPPI:
         present in the 'network' container. If no data is present in 'network', it raises an error.
         """
         # checking if PPI data is present
-        if self.network is None:
+        if not isinstance(self.network, DataFrame):
             raise ValueError("there is no protein-protein interaction data saved in the 'network' container")
 
         # graph creation
