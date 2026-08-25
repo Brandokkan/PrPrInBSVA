@@ -9,7 +9,11 @@ EDGE_SCORES = ("score", "nscore", "fscore", "pscore", "ascore", "escore", "dscor
 
 class GraphPPI:
     def create_graph(self):
+        """Create a graph from the PPI data present in the 'network' container
 
+        This method creates a networkx graph from the protein-protein interaction data
+        present in the 'network' container. If no data is present in 'network', it raises an error.
+        """
         # checking if PPI data is present
         if self.network is None:
             raise ValueError("there is no protein-protein interaction data saved in the 'network' container")
