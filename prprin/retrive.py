@@ -136,7 +136,7 @@ def get_unique_proteins(ppi_df, verbose=False):
         print(proteins)
     return proteins
 
-# TODO: consider adding deletion mode
+# TODO: consider adding deletion mode and possibility of adding PPI data directtly from code instead of user input
 class RetrivePPI:
     def get_raw_data(self, mode="add"):
         """ Asks the user to input the proteins of interest and assigns the
