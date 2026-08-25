@@ -7,7 +7,7 @@ STRINGID_COL_NAME = "stringId"
 SCORE_NAMES = ("score", "nscore", "fscore", "pscore", "ascore", "escore", "dscore", "tscore")
 ZERO_DIVISION_DISTANCE = 1000000
 
-def unweighted_metrics(graph, index_df, verbose=False):
+def calculate_unweighted_metrics(graph, index_df, verbose=False):
 
     # input check
     if not isinstance(graph, nx.Graph):
@@ -30,7 +30,7 @@ def unweighted_metrics(graph, index_df, verbose=False):
     return final_df
     
 
-def weighted_metrics(graph, index_df, w_type="score", verbose=False):
+def calculate_weighted_metrics(graph, index_df, w_type="score", verbose=False):
 
     # input check
     if not isinstance(graph, nx.Graph):
@@ -71,16 +71,20 @@ def weighted_metrics(graph, index_df, w_type="score", verbose=False):
 
 
 class MetricsPPI:
-    def calculate_metrics(self):
+    def calculate_metrics(self, used_weight="score"):
 
         # check if a graph exists
         if not isinstance(self.graph, nx.Graph):
             raise ValueError("there is no graph saved in the 'graph' container")
 
         # calculate key graph parameters
+        unweighted_metrics = calculate_unweighted_metrics(self.graph, self.proteins)
+        weighted_metrics = calculate_weighted_metrics(self.graph, self.proteins, used_weight)
 
-        # calculate unweighted parameters
+        # create final DataFrame
+        self.node_data = pd.merge(unweighted_metrics, weighted_metrics, on=["stringId", "symbol"])
 
+        return self
 
 if __name__ == "__main__":
     graph = nx.Graph()
