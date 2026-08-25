@@ -102,6 +102,23 @@ def interaction_retrival(verbose = False):
 
 
 def get_unique_proteins(ppi_df, verbose=False):
+    """Get the unique symbols and string ids from protein interaction data
+
+    This function obtains the unique proteins (symbol and string id) from
+    the protein-protein interaction DataFrame outputed by interaction_retrival().
+
+    Parameters
+    -------
+    ppi_df: pandas.DataFrame
+        DataFrame that contains protein-protein interaction data. like the one
+        outputed by interaction_retrival()
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing the unique proteins inside ppi_df.
+        Made of two columns (stringId and symbol).
+    """
     #input check
     if not isinstance(ppi_df, DataFrame):
         raise TypeError("ppi_df must be a pandas DataFrame")
