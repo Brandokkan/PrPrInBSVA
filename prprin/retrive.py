@@ -101,6 +101,24 @@ def interaction_retrival(verbose = False):
     return network_df
 
 
+def get_unique_proteins(ppi_df, verbose=False):
+    #input check
+    if not isinstance(ppi_df, DataFrame):
+        raise TypeError("ppi_df must be a pandas DataFrame")
+
+    # get unique proteins
+    a_proteins = ppi_df[["stringId_A", "preferredName_A"]]
+    a_proteins = a_proteins.rename(columns={"stringId_A": "stringId", "preferredName_A":"symbol"})
+    b_proteins = ppi_df[["stringId_B", "preferredName_B"]]
+    b_proteins = b_proteins.rename(columns={"stringId_B": "stringId", "preferredName_B":"symbol"})
+    proteins = concat([a_proteins, b_proteins], ignore_index=True)
+    proteins = proteins.drop_duplicates(ignore_index=True)
+
+    if verbose:
+        print(proteins)
+    return proteins
+
+
 class RetrivePPI:
     def get_raw_data(self):
         return self # enables chaning multiple methods togheter in the final object
