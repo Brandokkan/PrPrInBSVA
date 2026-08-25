@@ -1,5 +1,6 @@
 import stringdb
 from pathlib import Path
+from pandas import DataFrame, concat, unique, read_csv
 
 BASE_DIR = Path(__file__).resolve().parent.parent # project path
 DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
@@ -135,9 +136,43 @@ def get_unique_proteins(ppi_df, verbose=False):
         print(proteins)
     return proteins
 
-
+# TODO: consider adding deletion mode
 class RetrivePPI:
-    def get_raw_data(self):
+    def get_raw_data(self, mode="add"):
+        """ Asks the user to input the proteins of interest and assigns the
+        protein-protein interactiond ata to the relative container
+
+        This method first asks the user to input the protein of interest
+        manually or through a file and then assigns the protein-protein
+        interaction data to the 'network' container and the unique proteins
+        in the network to the 'proteins' container.
+
+        Parameters
+        -------
+        mode: str
+            must be one of 'add', 'a', 'replace' or 'r'.
+
+            replace mode: replaces the current protein-protein interaction
+            data (if any) with the inputed one.
+        """
+        #input check
+        add_str = ("add", "a")
+        replace_str = ("replace", "r")
+        if not isinstance(mode, str):
+            raise TypeError("mode must be a string")
+        if mode not in add_str + replace_str:
+            raise ValueError(f"mode must be one of 'add', 'a', 'replace' or 'r'. Got {mode} instead.")
+
+        # protein data retrival and asignment
+        network_df = interaction_retrival()
+        unique_proteins = get_unique_proteins(network_df)
+        if mode in replace_str: # replace mode
+            self.proteins = unique_proteins
+            self.network = network_df
+        elif mode in add_str:   # addition mode
+            pass    # TODO: implement addition mode
+
+
         return self # enables chaning multiple methods togheter in the final object
 
 
@@ -153,7 +188,11 @@ def main(): # only used for testing. Delete later
     # # print(ppi_df)
     # print(network_df)
 
-    interaction_retrival(True)
+    # ppi_df_path = DATA_DIR / "ex_ppi_df.csv"
+    # ppi_df_path.resolve()
+    # interaction_retrival(True).to_csv(ppi_df_path)
+
+    get_unique_proteins(read_csv(DATA_DIR / "ex_ppi_df.csv"), True)
 
 if __name__ == "__main__": # only used for testing. Delete later
     main()
