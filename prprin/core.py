@@ -19,11 +19,11 @@ class PrPrInCore:
     def __repr__(self):
         n = self.graph.number_of_nodes() if self.graph else 0
         e = self.graph.number_of_edges() if self.graph else 0
-        slots = [k for k in ("network", "node_data", "hubs", "enrichment")
+        slots = [k for k in ("network", "node_data", "hubs", "enrichment", "graph")
                  if getattr(self, k) is not None]
-        return (f"PrPrInObject: {len(self.proteins)} proteins in the object, "
-                f"{n} nodes, {e} edges\n"
-                f"data: {', '.join(slots) or 'none'}\n")
+        return (f"PrPrInObject: {len(self.proteins)} proteins in the object\n"
+                f"graph comosed by {n} nodes and {e} edges\n"
+                f"data present in the object: {', '.join(slots) or 'none'}\n")
 
 
 if __name__ == "__main__":
