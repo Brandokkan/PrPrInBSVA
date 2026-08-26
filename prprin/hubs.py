@@ -99,13 +99,28 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
 
 
 class HubsPPI:
-    def find_hubs(self, method="sd", metric="degree", **kwargs):
+    def find_hubs(self, method="sd", metric="degree", k=10, n_sd=2, ascending=False, how="intersection"):
         """..."""
+
+        # input check
         if not isinstance(self.node_data, pd.DataFrame):
             raise ValueError("there is no node data saved in the 'node_data' container. Run calculate_metrics() first")
-        ...
-        self.node_data[f"is_hub_{method}"] = ...
-        self.hubs = self.node_data.loc[self.node_data[f"is_hub_{method}"]]
+        if not isinstance(method, str):
+            raise TypeError("'method' must be a string")
+        if method not in HUB_METHODS:
+            raise ValueError(f"'method' must be one of {HUB_METHODS}")
+
+        # method selection
+        if method == "topk":
+            self.node_data[f"is hub ({method})"] = hubs_by_topk(self.node_data, metric, k, ascending)
+        elif method == "sd":
+            self.node_data[f"is hub ({method})"] = hubs_by_sd(self.node_data, metric, n_sd)
+        elif method == "consensus":
+            self.node_data[f"is hub ({method})"] = hubs_by_consensus(self.node_data, metric, k, how)
+
+        # hub addition
+        self.hubs = self.node_data.loc[self.node_data[f"is hub ({method})"]]
+
         return self
 
 
