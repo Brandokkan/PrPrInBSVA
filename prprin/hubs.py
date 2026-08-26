@@ -1,8 +1,12 @@
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
-
-HUB_METHODS = ("topk", "sd", "consensus")
+HUB_METHODS = ["topk", "sd", "consensus"]
+NAME_COLUMNS = ["stringId", "symbol"]
+UNWEIGHTED_COLUMNS = ["degree", "degree centrality", "betweenness centrality", "clustering coefficient"]
+BASE_DIR = Path(__file__).resolve().parent.parent # project path
+DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
 
 
 def hubs_by_topk(node_data, metric="degree", k=10, ascending=False, verbose=False):
@@ -52,7 +56,46 @@ def hubs_by_sd(node_data, metric="degree", n_sd=2, verbose=False):
     return selected_nodes_bool
 
 
-def hubs_by_consensus(node_data, metrics=(...), k=10, how="intersection"): ...
+def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbose=False):
+
+    # input check
+    if not isinstance(node_data, pd.DataFrame):
+        raise TypeError("node_data must be a pandas DataFrame. Structured like the one contained in 'node_data'")
+    if not isinstance(metrics, (str, list)):
+        raise TypeError("metric must be a string or list telling the metric(s) to use")
+    if not (isinstance(k, int) and not isinstance(k, bool)) or k <= 0:
+        raise TypeError("k must be a positive integer value")
+    if not isinstance(how, str):
+        raise TypeError("'how' must be a string")
+    if how not in ("sum", "intersection"):
+        raise ValueError("must be either 'sum' or 'intersection'")
+
+    # convert metrics into the actually used columns for convenience
+    if metrics == "all":
+        used_cols = [col for col in node_data.columns if col not in NAME_COLUMNS]
+    elif metrics == "unweighted":
+        used_cols = [col for col in node_data.columns if col in UNWEIGHTED_COLUMNS]
+    elif not isinstance(metrics, list):
+        used_cols = [col for col in node_data.columns if metrics in col]
+    else:
+        used_cols = metrics.copy()
+
+    # find hubs
+    rank_df = node_data[NAME_COLUMNS]
+    if how == "sum":   # find hubs by taking the top k summed rank over metrics
+        rank_df["rank sum"] = node_data[used_cols].rank().sum(axis=1)
+        rank_df = rank_df.nlargest(k, "rank sum", "all")
+    elif how == "intersection":     # find hubs by intersecting the top k rank over all metrics
+        for col in used_cols:
+            col_rank_df = node_data[NAME_COLUMNS]
+            col_rank_df["rank"] = node_data[col].rank()
+            col_rank_df = col_rank_df.nlargest(k, "rank", "all")
+            rank_df = rank_df.merge(col_rank_df[NAME_COLUMNS], on=NAME_COLUMNS)
+    top_k_bool = node_data["stringId"].isin(rank_df["stringId"])
+        
+    if verbose:
+        print(rank_df)
+    return top_k_bool
 
 
 class HubsPPI:
@@ -64,3 +107,9 @@ class HubsPPI:
         self.node_data[f"is_hub_{method}"] = ...
         self.hubs = self.node_data.loc[self.node_data[f"is_hub_{method}"]]
         return self
+
+
+if __name__ == "__main__":
+    test_node_data = pd.read_csv(DATA_DIR / "ex_node_data.csv")
+    print(test_node_data)
+    print(hubs_by_consensus(test_node_data, how="intersection", verbose=True, k=2, metrics="degree"))
