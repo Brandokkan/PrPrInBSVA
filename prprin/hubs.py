@@ -50,6 +50,10 @@ def hubs_by_sd(node_data, metric="degree", n_sd=2, verbose=False):
     # find hubs
     selected_nodes_bool = node_data[metric] > np.mean(node_data[metric]) + n_sd*np.std(node_data[metric])
 
+    # empty warning
+    if not any(selected_nodes_bool):
+        print("\nWarning: the sd method for finding hub proteins yielded no results\n")
+
     if verbose:
         print(selected_nodes_bool)
         
@@ -79,6 +83,7 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
         used_cols = [col for col in node_data.columns if metrics in col]
     else:
         used_cols = metrics.copy()
+    print(f"\nThe selected metrics for the consensus method for finding hub proteins are: {used_cols}\n")
 
     # find hubs
     rank_df = node_data[NAME_COLUMNS]
@@ -92,9 +97,14 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
             col_rank_df = col_rank_df.nlargest(k, "rank", "all")
             rank_df = rank_df.merge(col_rank_df[NAME_COLUMNS], on=NAME_COLUMNS)
     top_k_bool = node_data["stringId"].isin(rank_df["stringId"])
-        
+
+    # empty warning
+    if not any(top_k_bool):
+        print("\nWarning: the consensus method for finding hub proteins yielded no results\n")
+
     if verbose:
         print(rank_df)
+    
     return top_k_bool
 
 
