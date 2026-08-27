@@ -31,24 +31,37 @@ class EnrichPPI:
         else:
             selected_hub_mask = hub_method
 
-        # enrichment
+        # enrichment calculation
+        hub_method_str = selected_hub_mask[selected_hub_mask.rfind("("):selected_hub_mask.rfind(")")+1]
         if background == "network":
-            self.enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
                                                       self.node_data["stringId"],
                                                       self.specie_id)
+            
+            run_name = f"hubs {hub_method_str} vs {background}"
         elif background == "genome":
-            self.enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"],
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"],
                                                       species=self.specie_id)
+            run_name = f"hubs {hub_method_str} vs {background}"
         elif isinstance(background, pd.DataFrame):
-            self.enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
                                                       background["stringId"],
                                                       self.specie_id)
+            run_name = f"hubs {hub_method_str} vs custom background"
         else:
-            self.enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
                                                       background,
                                                       self.specie_id)
-        if len(self.enrichment) == 0:
+            run_name = f"hubs {hub_method_str} vs custom background"
+        if len(enrichment) == 0:
             print("\nWarning: enrich() yielded no results\n")
+
+        # self.encrichment asignment
+        enrichment["run"] = run_name
+        if self.enrichment is None:
+            self.enrichment = enrichment
+        else:
+            self.enrichment = pd.concat([self.enrichment, enrichment])
 
         return self
 
