@@ -4,9 +4,11 @@ from pandas import DataFrame, concat, unique, read_csv
 
 BASE_DIR = Path(__file__).resolve().parent.parent # project path
 DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
+GET_STRING_ID_KWARGS = ("species", "limit", "echo_query", "caller_identity")
+GET_NETWORK_KWARGS = ("species", "required_score", "caller_identity", "add_nodes")
 
 
-def read_input(verbose = False):
+def read_input(verbose = False): #TODO: consider adding option to select species identifier
     """Reads and proces the user input to obtain the proteins identifiers
 
     This function accepts, reads and checks the user input 
@@ -64,7 +66,7 @@ def read_input(verbose = False):
     return protein_ids
 
 
-def interaction_retrival(input_proteins=None, verbose = False):
+def interaction_retrival(input_proteins=None, verbose = False, **kwargs):
     """Complete pipeline from input to protein interaction data
 
     Retrives the protein interaction data of interest from
@@ -77,6 +79,11 @@ def interaction_retrival(input_proteins=None, verbose = False):
         of a file in the 'data' folder containing the identifiers (one
         identifier per line)
 
+    **kwargs:
+        Key word arguments passed to the stringdb.get_string_ids() and 
+        stringdb.get_network() functions. (ex species=10090 to get Mus
+        musculus proteins)
+
     Returns
     -------
     pandas.DataFrame
@@ -87,6 +94,11 @@ def interaction_retrival(input_proteins=None, verbose = False):
     if not (isinstance(input_proteins, str) or input_proteins is None):
         raise TypeError("input_proteins must be a string or be left empty")
 
+    # dividing kwargs between get_string_ids() and get_network
+    string_kwargs = {key:value for key, value in kwargs.items() if key in GET_STRING_ID_KWARGS}
+    network_kwargs = {key:value for key, value in kwargs.items() if key in GET_NETWORK_KWARGS}
+    
+    # getting the protein ids
     if isinstance(input_proteins, str):   # case were proteins were supplied directlly to the function
         data_file_path = DATA_DIR / input_proteins
         if data_file_path.is_file():
@@ -95,7 +107,7 @@ def interaction_retrival(input_proteins=None, verbose = False):
                     protein_ids = [pid.strip() for pid in protein_ids]
         else:
             protein_ids = input_proteins.split()
-        string_ids = stringdb.get_string_ids(protein_ids)
+        string_ids = stringdb.get_string_ids(protein_ids, **string_kwargs)
         print("proteins found:")
         print(string_ids)
     else:   # case for the manual input of proteins from the console
@@ -103,7 +115,7 @@ def interaction_retrival(input_proteins=None, verbose = False):
         checking_string_id = True
         while checking_string_id:
             protein_ids = read_input()
-            string_ids = stringdb.get_string_ids(protein_ids)
+            string_ids = stringdb.get_string_ids(protein_ids, **string_kwargs)
             print() # spacing
             print(string_ids)
             while True:
@@ -119,7 +131,7 @@ def interaction_retrival(input_proteins=None, verbose = False):
                     print("invalid character. please insert y or n")
 
     # transform into interaction data
-    network_df = stringdb.get_network(string_ids["stringId"])
+    network_df = stringdb.get_network(string_ids["stringId"], **network_kwargs) 
     if verbose:
         print() # spacing
         print(network_df)
@@ -137,6 +149,11 @@ def get_unique_proteins(ppi_df, verbose=False):
     ppi_df: pandas.DataFrame
         DataFrame that contains protein-protein interaction data. like the one
         outputed by interaction_retrival()
+
+    **kwargs:
+        Key word arguments passed to the stringdb.get_string_ids() and 
+        stringdb.get_network() functions. (ex species=10090 to get Mus
+        musculus proteins)   
 
     Returns
     -------
@@ -162,7 +179,7 @@ def get_unique_proteins(ppi_df, verbose=False):
 
 # TODO: consider adding deletion mode
 class RetrivePPI:
-    def get_raw_data(self, input_proteins=None, mode="replace"):
+    def get_raw_data(self, input_proteins=None, mode="replace", **kwargs):
         """ Asks the user to input the proteins of interest and assigns the
         protein-protein interactiond ata to the relative container
 
@@ -193,7 +210,7 @@ class RetrivePPI:
             raise ValueError(f"mode must be one of 'add', 'a', 'replace' or 'r'. Got {mode} instead.")
 
         # protein data retrival and asignment
-        network_df = interaction_retrival(input_proteins)
+        network_df = interaction_retrival(input_proteins, **kwargs)
         unique_proteins = get_unique_proteins(network_df)
         if mode in replace_str: # replace mode
             self.proteins = unique_proteins
