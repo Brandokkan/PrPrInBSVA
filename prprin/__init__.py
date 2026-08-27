@@ -4,12 +4,12 @@ from .retrive import RetrivePPI
 from .graph import GraphPPI
 from .metrics import MetricsPPI
 from .hubs import HubsPPI
-# from .enrich import EnrichMixin
+from .enrich import EnrichPPI
 # from .viz import VizMixin
 
 
 class PrPrInObject(PrPrInCore, RetrivePPI, GraphPPI, MetricsPPI,
-                   HubsPPI):
+                   HubsPPI, EnrichPPI):
     """Container for a protein-protein interaction analysis: raw data, derived data, and the methods."""
 
 
