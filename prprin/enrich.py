@@ -51,7 +51,7 @@ class EnrichPPI:
                 - a list, tuple or pandas.Series of string ids, to use exactly
                 the proteins it contains.
         """
-        
+
         # input check
         if not isinstance(self.node_data, pd.DataFrame):
             raise ValueError("there is no node data saved in the 'node_data' container. Run calculate_metrics() first")
@@ -102,7 +102,7 @@ class EnrichPPI:
         if self.enrichment is None:
             self.enrichment = enrichment
         else:
-            self.enrichment = pd.concat([self.enrichment, enrichment])
+            self.enrichment = pd.concat([self.enrichment, enrichment], ignore_index=True)
 
         return self
 
