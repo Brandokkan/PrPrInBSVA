@@ -212,6 +212,7 @@ class RetrivePPI:
         # protein data retrival and asignment
         network_df = interaction_retrival(input_proteins, **kwargs)
         unique_proteins = get_unique_proteins(network_df)
+        self.specie_id = kwargs.get("species", 9606)
         if mode in replace_str: # replace mode
             self.proteins = unique_proteins
             self.network = network_df
