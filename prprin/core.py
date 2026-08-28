@@ -14,6 +14,7 @@ class PrPrInCore:
         # processed data
         self.graph = None                                                                                     # graph of the protein-protein interactions
         self.node_data = None                                                                                 # per-node table (similar to Seurat's meta.data)
+        self.used_weight_name = None                                                                          # the name of the score used as the weight for the edges in the graph
         self.hubs = None                                                                                      # hub proteins
         self.enrichment = None                                                                                # enrichment analysis done on the proteins
 

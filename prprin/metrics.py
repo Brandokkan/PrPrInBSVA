@@ -163,6 +163,7 @@ class MetricsPPI:
         # calculate key graph parameters
         unweighted_metrics = calculate_unweighted_metrics(self.graph, self.proteins)
         weighted_metrics = calculate_weighted_metrics(self.graph, self.proteins, used_weight, zero_distance)
+        self.used_weight_name = used_weight
 
         # create final DataFrame
         self.node_data = pd.merge(unweighted_metrics, weighted_metrics, on=["stringId", "symbol"])
