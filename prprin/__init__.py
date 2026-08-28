@@ -5,11 +5,11 @@ from .graph import GraphPPI
 from .metrics import MetricsPPI
 from .hubs import HubsPPI
 from .enrich import EnrichPPI
-# from .viz import VizMixin
+from .viz import VizPPI
 
 
 class PrPrInObject(PrPrInCore, RetrivePPI, GraphPPI, MetricsPPI,
-                   HubsPPI, EnrichPPI):
+                   HubsPPI, EnrichPPI, VizPPI):
     """Container for a protein-protein interaction analysis: raw data, derived data, and the methods."""
 
 
