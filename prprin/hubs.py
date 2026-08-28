@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 
 HUB_METHODS = ["topk", "sd", "consensus"]
-NAME_COLUMNS = ["stringId", "symbol"]
+NAME_COLUMNS = ["symbol"]     # the stringId is the index of node_data, not a column
 UNWEIGHTED_COLUMNS = ["degree", "degree centrality", "betweenness centrality", "clustering coefficient"]
 BASE_DIR = Path(__file__).resolve().parent.parent # project path
 DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
@@ -21,8 +21,8 @@ def hubs_by_topk(node_data, metric="degree", k=10, ascending=False, verbose=Fals
     Parameters
     -------
     node_data: pandas.DataFrame
-        The DataFrame containing the metrics associated to each node. The one
-        stored in the 'node_data' container.
+        The DataFrame containing the metrics associated to each node, indexed
+        by stringId. The one stored in the 'node_data' container.
 
     metric: str
         The name of the column of node_data used to rank the nodes.
@@ -76,8 +76,8 @@ def hubs_by_sd(node_data, metric="degree", n_sd=2, verbose=False):
     Parameters
     -------
     node_data: pandas.DataFrame
-        The DataFrame containing the metrics associated to each node. The one
-        stored in the 'node_data' container.
+        The DataFrame containing the metrics associated to each node, indexed
+        by stringId. The one stored in the 'node_data' container.
 
     metric: str
         The name of the column of node_data used as the metric.
@@ -130,8 +130,8 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
     Parameters
     -------
     node_data: pandas.DataFrame
-        The DataFrame containing the metrics associated to each node. The one
-        stored in the 'node_data' container.
+        The DataFrame containing the metrics associated to each node, indexed
+        by stringId. The one stored in the 'node_data' container.
 
     metrics: str or list
         Tells the function which columns of node_data are used as metrics.
@@ -200,8 +200,8 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
             col_rank_df = node_data[NAME_COLUMNS].copy()
             col_rank_df["rank"] = node_data[col].rank()
             col_rank_df = col_rank_df.nlargest(k, "rank", "all")
-            rank_df = rank_df.merge(col_rank_df[NAME_COLUMNS], on=NAME_COLUMNS)
-    top_k_bool = node_data["stringId"].isin(rank_df["stringId"])
+            rank_df = rank_df.loc[rank_df.index.isin(col_rank_df.index)]
+    top_k_bool = pd.Series(node_data.index.isin(rank_df.index), index=node_data.index)
 
     # empty warning
     if not any(top_k_bool):
@@ -295,6 +295,6 @@ class HubsPPI:
 
 
 if __name__ == "__main__":
-    test_node_data = pd.read_csv(DATA_DIR / "ex_node_data.csv")
+    test_node_data = pd.read_csv(DATA_DIR / "ex_node_data.csv", index_col="stringId")
     print(test_node_data)
     print(hubs_by_consensus(test_node_data, how="intersection", verbose=True, k=2, metrics="degree"))

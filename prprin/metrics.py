@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 
-STRINGID_COL_NAME = "stringId"
+STRINGID_INDEX_NAME = "stringId"
 SCORE_NAMES = ("score", "nscore", "fscore", "pscore", "ascore", "escore", "dscore", "tscore")
 
 
@@ -20,8 +20,8 @@ def calculate_unweighted_metrics(graph, index_df, verbose=False):
         The graph containing the nodes of which the metrics will be calculated
 
     index_df: pandas.DataFrame
-        The DataFrame containing the association of stringId to symbol. The one
-        stored in the 'proteins' container.
+        The DataFrame associating each symbol to its stringId, indexed by
+        stringId. The one stored in the 'proteins' container.
 
     Returns
     -------
@@ -42,7 +42,7 @@ def calculate_unweighted_metrics(graph, index_df, verbose=False):
 
     # final DataFrame creation
     metrics_df = pd.DataFrame([degree, degree_centrality, betweenes_centrality, clustering_centrality]).T
-    final_df = pd.merge(index_df, metrics_df, left_on=STRINGID_COL_NAME, right_index=True)
+    final_df = pd.merge(index_df, metrics_df, left_index=True, right_index=True)
 
     if verbose:
         print(final_df, sep="\n")
@@ -65,8 +65,8 @@ def calculate_weighted_metrics(graph, index_df, w_type="score", zero_distance=10
         The graph containing the nodes of which the metrics will be calculated
 
     index_df: pandas.DataFrame
-        The DataFrame containing the association of stringId to symbol. The one
-        stored in the 'proteins' container.
+        The DataFrame associating each symbol to its stringId, indexed by
+        stringId. The one stored in the 'proteins' container.
 
     w_type: str
         Must be one of "score", "nscore", "fscore", "pscore", "ascore", "escore",
@@ -120,7 +120,7 @@ def calculate_weighted_metrics(graph, index_df, w_type="score", zero_distance=10
     # final DataFrame creation
     metrics_df = pd.DataFrame([w_degree, w_degree_normalized, w_betweenes_centrality_sub, w_betweenes_centrality_rec, 
                                w_betweenes_centrality_log, w_clustering_centrality]).T
-    final_df = pd.merge(index_df, metrics_df, left_on=STRINGID_COL_NAME, right_index=True)
+    final_df = pd.merge(index_df, metrics_df, left_index=True, right_index=True)
 
     if verbose:
         print(final_df, sep="\n")
@@ -165,8 +165,9 @@ class MetricsPPI:
         weighted_metrics = calculate_weighted_metrics(self.graph, self.proteins, used_weight, zero_distance)
         self.used_weight_name = used_weight
 
-        # create final DataFrame
-        self.node_data = pd.merge(unweighted_metrics, weighted_metrics, on=["stringId", "symbol"])
+        # create final DataFrame (the symbol is already carried by the un-weighted table)
+        self.node_data = pd.merge(unweighted_metrics, weighted_metrics.drop(columns="symbol"),
+                                  left_index=True, right_index=True)
 
         return self
 
@@ -175,6 +176,7 @@ if __name__ == "__main__":
     graph.add_edges_from((("a","b", {"score":0.8}), ("c","d", {"score":0.3}), ("d","b", {"score":0}), ("d","a", {"score":0.9}),
                           ("c","e", {"score":1}), ("c","f", {"score":0.95})
                           ))
-    inx_df = pd.DataFrame({STRINGID_COL_NAME:["a","b","c","d","e","f"], "symbol":["azz","bee","caz","dam","ez","fuc"]})
+    inx_df = pd.DataFrame({"symbol":["azz","bee","caz","dam","ez","fuc"]},
+                          index=pd.Index(["a","b","c","d","e","f"], name=STRINGID_INDEX_NAME))
     print(calculate_weighted_metrics(graph, inx_df))
     calculate_unweighted_metrics(graph, inx_df, verbose=True)

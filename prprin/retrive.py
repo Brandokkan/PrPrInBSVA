@@ -159,7 +159,7 @@ def get_unique_proteins(ppi_df, verbose=False):
     -------
     pandas.DataFrame
         A DataFrame containing the unique proteins inside ppi_df.
-        Made of two columns (stringId and symbol).
+        Indexed by stringId and made of one column (symbol).
     """
     #input check
     if not isinstance(ppi_df, DataFrame):
@@ -171,7 +171,7 @@ def get_unique_proteins(ppi_df, verbose=False):
     b_proteins = ppi_df[["stringId_B", "preferredName_B"]]
     b_proteins = b_proteins.rename(columns={"stringId_B": "stringId", "preferredName_B":"symbol"})
     proteins = concat([a_proteins, b_proteins], ignore_index=True)
-    proteins = proteins.drop_duplicates(ignore_index=True)
+    proteins = proteins.drop_duplicates(ignore_index=True).set_index("stringId")
 
     if verbose:
         print(proteins)

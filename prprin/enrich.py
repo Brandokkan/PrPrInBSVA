@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent # project path
 DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
-NAME_COLUMNS = ["stringId", "symbol"]
+NAME_COLUMNS = ["symbol"]     # the stringId is the index of node_data, not a column
 POSSIBLE_ENRICHMENT_BACKGROUND_STR = ("network", "genome")
 
 
@@ -47,7 +47,7 @@ class EnrichPPI:
                 - "genome", to use the whole genome of the species as the
                 background (the STRING default).
                 - a pandas.DataFrame, to use the string ids contained in its
-                "stringId" column.
+                index (like the one stored in 'node_data' or 'proteins').
                 - a list, tuple or pandas.Series of string ids, to use exactly
                 the proteins it contains.
         """
@@ -74,26 +74,27 @@ class EnrichPPI:
 
         # enrichment calculation
         hub_method_str = selected_hub_mask[selected_hub_mask.rfind("("):selected_hub_mask.rfind(")")+1]
-        if background == "network":
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
-                                                      self.node_data["stringId"],
+        if isinstance(background, str) and background == "network":
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index, 
+                                                      self.node_data.index,
                                                       self.specie_id)
             
             run_name = f"hubs {hub_method_str} vs {background}"
-        elif background == "genome":
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"],
+        elif isinstance(background, str) and background == "genome":
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index,
                                                       species=self.specie_id)
             run_name = f"hubs {hub_method_str} vs {background}"
         elif isinstance(background, pd.DataFrame):
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
-                                                      background["stringId"],
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index, 
+                                                      background.index,
                                                       self.specie_id)
             run_name = f"hubs {hub_method_str} vs custom background"
         else:
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]]["stringId"], 
+            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index, 
                                                       background,
                                                       self.specie_id)
             run_name = f"hubs {hub_method_str} vs custom background"
+
         if len(enrichment) == 0:
             print("\nWarning: enrich() yielded no results\n")
 
@@ -108,7 +109,7 @@ class EnrichPPI:
 
 
 if __name__ == "__main__":
-    node_data = pd.read_csv(DATA_DIR / "ex_large_node_data.csv")
+    node_data = pd.read_csv(DATA_DIR / "ex_large_node_data.csv", index_col="stringId")
     hubs = node_data.loc[node_data["is hub (consensus)"]]
-    enrichment = stringdb.get_enrichment(hubs["stringId"])
+    enrichment = stringdb.get_enrichment(hubs.index)
     print(enrichment.T)
