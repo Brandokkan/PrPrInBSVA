@@ -106,10 +106,3 @@ class EnrichPPI:
             self.enrichment = pd.concat([self.enrichment, enrichment], ignore_index=True)
 
         return self
-
-
-if __name__ == "__main__":
-    node_data = pd.read_csv(DATA_DIR / "ex_large_node_data.csv", index_col="stringId")
-    hubs = node_data.loc[node_data["is hub (consensus)"]]
-    enrichment = stringdb.get_enrichment(hubs.index)
-    print(enrichment.T)

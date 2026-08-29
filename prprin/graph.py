@@ -28,9 +28,3 @@ class GraphPPI:
         )
 
         return self
-
-
-if __name__ == "__main__":
-    # ex_ppi_df = read_csv(DATA_DIR / "ex_ppi_df.csv")
-    # ppi_edges_to_net(ex_ppi_df, True)
-    pass

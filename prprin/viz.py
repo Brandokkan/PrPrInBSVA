@@ -923,9 +923,3 @@ class VizPPI:
                            file=file, cmap=cmap)
 
         return self
-
-
-if __name__ == "__main__":
-    ex_metrics = pd.read_csv(DATA_DIR / "ex_large_node_data.csv", index_col="stringId")
-    # print(ex_metrics)
-    metrics_clustermap(ex_metrics, hub_method="is hub (consensus)", metrics_to_show="all", normalize=True)

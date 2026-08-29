@@ -27,7 +27,3 @@ class PrPrInCore:
                 f"NCBI taxonomy identifier of specie of reference: {self.specie_id}\n"
                 f"graph comosed by {n} nodes and {e} edges\n"
                 f"data present in the object: {', '.join(slots) or 'none'}\n")
-
-
-if __name__ == "__main__":
-    print(PrPrInCore())

@@ -292,9 +292,3 @@ class HubsPPI:
         self.hubs = self.node_data.loc[self.node_data[f"is hub ({method})"]]
 
         return self
-
-
-if __name__ == "__main__":
-    test_node_data = pd.read_csv(DATA_DIR / "ex_node_data.csv", index_col="stringId")
-    print(test_node_data)
-    print(hubs_by_consensus(test_node_data, how="intersection", verbose=True, k=2, metrics="degree"))

@@ -170,13 +170,3 @@ class MetricsPPI:
                                   left_index=True, right_index=True)
 
         return self
-
-if __name__ == "__main__":
-    graph = nx.Graph()
-    graph.add_edges_from((("a","b", {"score":0.8}), ("c","d", {"score":0.3}), ("d","b", {"score":0}), ("d","a", {"score":0.9}),
-                          ("c","e", {"score":1}), ("c","f", {"score":0.95})
-                          ))
-    inx_df = pd.DataFrame({"symbol":["azz","bee","caz","dam","ez","fuc"]},
-                          index=pd.Index(["a","b","c","d","e","f"], name=STRINGID_INDEX_NAME))
-    print(calculate_weighted_metrics(graph, inx_df))
-    calculate_unweighted_metrics(graph, inx_df, verbose=True)

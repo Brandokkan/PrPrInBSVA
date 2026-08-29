@@ -8,6 +8,64 @@ GET_STRING_ID_KWARGS = ("species", "limit", "echo_query", "caller_identity")
 GET_NETWORK_KWARGS = ("species", "required_score", "caller_identity", "add_nodes")
 
 
+def resolve_input_path(input_string):
+    """Find the file of protein identifiers the user meant
+
+    This function looks for the given file first as it was written (so absolute
+    paths and paths relative to the working directory of the user work), and
+    only after inside the 'data' folder of the project, so that the example
+    files can still be called by their bare name.
+
+    A string that looks like a path but matches no file raises an error instead
+    of being silently read as a list of protein identifiers.
+
+    Parameters
+    -------
+    input_string: str
+        The string given by the user, either a path to a file or the protein
+        identifiers themselves.
+
+    Returns
+    -------
+    pathlib.Path or None
+        The path of the found file, or None when the string does not point to
+        a file and has to be read as protein identifiers
+    """
+    # input check
+    if not isinstance(input_string, str):
+        raise TypeError("input_string must be a string")
+
+    candidate = Path(input_string.strip()).expanduser()
+    for path in (candidate, Path.cwd() / candidate, DATA_DIR / candidate):
+        if path.is_file():
+            return path
+
+    # a string that looks like a path but matches no file is a mistake of the user, not
+    # a list of protein identifiers to send to STRING
+    if candidate.suffix or "/" in input_string or "\\" in input_string:
+        raise FileNotFoundError(f"'{input_string}' looks like the path of a file, but no such file was found "
+                                f"in the working directory ({Path.cwd()}) nor in the data folder ({DATA_DIR})")
+
+    return None
+
+
+def read_identifiers_file(path):
+    """Read the protein identifiers written one per line in a file
+
+    Parameters
+    -------
+    path: str or pathlib.Path
+        The path of the file to read.
+
+    Returns
+    -------
+    list
+        The protein identifiers found in the file, without the empty lines
+    """
+    with open(path, "r", encoding="utf-8") as ppi_file:
+        return [pid.strip() for pid in ppi_file if pid.strip()]
+
+
 def read_input(verbose = False): #TODO: consider adding option to select species identifier
     """Reads and proces the user input to obtain the proteins identifiers
 
@@ -45,17 +103,9 @@ def read_input(verbose = False): #TODO: consider adding option to select species
             else:
                 print("invalid confermation input. write y or n")
 
-    user_path = Path(inp_string.strip()).expanduser().resolve()
-    user_path_data = DATA_DIR / inp_string.strip()
-    user_path_data = user_path_data.expanduser().resolve()
-    if user_path.is_file():
-        with open(user_path, "r", encoding="utf-8") as ppi_file:
-            protein_ids = ppi_file.readlines()
-            protein_ids = [pid.strip() for pid in protein_ids]
-    elif user_path_data.is_file():
-        with open(user_path_data, "r", encoding="utf-8") as ppi_file:
-            protein_ids = ppi_file.readlines()
-            protein_ids = [pid.strip() for pid in protein_ids]
+    user_path = resolve_input_path(inp_string)
+    if user_path is not None:
+        protein_ids = read_identifiers_file(user_path)
     else:
         protein_ids = inp_string.split()
 
@@ -100,11 +150,9 @@ def interaction_retrival(input_proteins=None, verbose = False, **kwargs):
     
     # getting the protein ids
     if isinstance(input_proteins, str):   # case were proteins were supplied directlly to the function
-        data_file_path = DATA_DIR / input_proteins
-        if data_file_path.is_file():
-            with open(data_file_path, "r", encoding="utf-8") as ppi_file:
-                    protein_ids = ppi_file.readlines()
-                    protein_ids = [pid.strip() for pid in protein_ids]
+        data_file_path = resolve_input_path(input_proteins)
+        if data_file_path is not None:
+            protein_ids = read_identifiers_file(data_file_path)
         else:
             protein_ids = input_proteins.split()
         string_ids = stringdb.get_string_ids(protein_ids, **string_kwargs)
@@ -204,26 +252,3 @@ class RetrivePPI:
         self.network = network_df
 
         return self # enables chaning multiple methods togheter in the final object
-
-
-def main(): # only used for testing. Delete later
-    # genes = ['TP53', 'BRCA1', 'FANCD1', 'FANCL', "9606.ENSP00000497910"]
-    # string_ids = stringdb.get_string_ids(genes)
-    # print(string_ids)
-    # enrichment_df = stringdb.get_enrichment(string_ids.stringId)
-    # # print(enrichment_df.loc[enrichment_df["fdr"] == min(enrichment_df["fdr"])]["description"].values[0])
-    # # print(enrichment_df)
-    # ppi_df = stringdb.get_ppi_enrichment(string_ids["stringId"])
-    # network_df = stringdb.get_network(string_ids["stringId"])
-    # # print(ppi_df)
-    # print(network_df)
-
-    # ppi_df_path = DATA_DIR / "ex_ppi_df.csv"
-    # ppi_df_path.resolve()
-    # interaction_retrival(True).to_csv(ppi_df_path)
-
-    get_unique_proteins(read_csv(DATA_DIR / "ex_ppi_df.csv"), True)
-
-if __name__ == "__main__": # only used for testing. Delete later
-    main()
-    pass
