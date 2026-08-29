@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-
+import seaborn as sns
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ DATA_DIR = BASE_DIR / "data" # data path safe for inter-machine operability
 PLOTS_DIR = BASE_DIR / "plots" # plots path safe for inter-machine operability
 
 SYMBOL_COL_NAME = "symbol"
+UNWEIGHTED_COLUMNS = ["degree", "degree centrality", "betweenness centrality", "clustering coefficient"]
 # colors used when a boolean column (like the "is hub (method)" masks) is mapped on the nodes
 BOOL_COLORS = {True: "#d62728", False: "#c6d5e3"}
 DEFAULT_COLOR = "#97c2fc"   # color of the nodes when no coloring column is given
@@ -505,6 +506,66 @@ def plot_a_graph(graph, node_data, color_by=None, size_by="degree", highlight=No
     return path_file
 
 
+def metrics_clustermap(metrics, metrics_to_show="absolute", normalize=False, hub_method=None, file="clustermap.png",
+                       weight_used="score"):
+
+    # input check
+    if not isinstance(metrics, pd.DataFrame):
+        TypeError("metrics must be a pandas DataFrame")
+    if not isinstance(metrics_to_show, (str, list)):
+        TypeError("metrics_to_show must be a string or a list")
+    if not isinstance(normalize, bool):
+        TypeError("normalize must be a boolean")
+    if not isinstance(hub_method, str) and hub_method is not None:
+        TypeError("hub_method must be a string or None")
+    if hub_method not in [col for col in metrics.columns if "is hub" in col]:
+        ValueError("hub_method must be the name of a column telling if a protein is a hub or not")
+    if not isinstance(file, str):
+        TypeError("file must be a string containig the name of the clustermap file")
+    if not isinstance(weight_used, str):
+        TypeError("weight_used must be a string telling the attribute used as the weight in the graph")
+    if not any([weight_used in col for col in metrics.columns]):
+        ValueError("weight_used value is not the current one being used as the weights")
+
+    # preparing metrics for plotting
+    symbol_idx_metrics = metrics.set_index("symbol") # to show symbols instead of stringId in the plot
+    absolute_cols = ["degree", f"weighted degree ({weight_used})"]
+    # not_numeric_cols_name = [col for col in symbol_idx_metrics.columns if "is hub" in col]
+
+    # convert metrics_to_show into the actual plotted metrics
+    cols_without_hubs = [col for col in symbol_idx_metrics.columns if "is hub" not in col]
+    if metrics_to_show == "all":
+        used_cols = cols_without_hubs
+    elif metrics_to_show == "absolute":
+        used_cols = absolute_cols
+    elif metrics_to_show == "relative":
+        used_cols = [col for col in cols_without_hubs if col not in absolute_cols]
+    elif metrics_to_show == "unweighted":
+        used_cols = [col for col in cols_without_hubs if col in UNWEIGHTED_COLUMNS]
+    elif not isinstance(metrics_to_show, list):
+        used_cols = [col for col in cols_without_hubs if metrics_to_show in col]
+    else:
+        used_cols = metrics_to_show
+    print(f"\nThe selected metrics for the consensus method for finding hub proteins are: {used_cols}\n")
+
+    # what hub method to show if at all
+    if hub_method is not None: 
+        lut = {True:"green", False:"red"}
+        row_colors = symbol_idx_metrics[hub_method].map(lut)
+    else:
+        row_colors = None
+
+    # clustermap creation
+    clustermap = sns.clustermap(symbol_idx_metrics[used_cols], row_colors=row_colors, standard_scale=1 if normalize else None)
+    
+    # graph saving
+    path_file = Path(file)
+    if not path_file.is_absolute():
+        PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+        path_file = PLOTS_DIR / path_file
+    clustermap.savefig(path_file)
+
+
 class VizPPI:
     def plot_network(self, color_by=None, size_by="degree", highlight=None, min_score=0.0,
                      cmap="viridis", physics=False, file="network.html", node_pos_scale=600,
@@ -574,11 +635,21 @@ class VizPPI:
 
         return self
 
-    def plot_metrics(self, metrics="unweighted", file="metrics.html"): ...
+    def plot_metrics(self, metrics_to_show="absolute", normalize=False, hub_method=None, file="clustermap.png"):
+
+        # input check
+        if not isinstance(self.node_data, pd.DataFrame):
+            raise ValueError("there is no node data saved in the 'node_data' container. Run calculate_metrics() first")
+
+        # metrics creation adn saving
+        metrics_clustermap(self.node_data, metrics_to_show, normalize, hub_method, file, weight_used=self.used_weight_name)
+
     def plot_enrichment(self, run=None, category="Process", top_n=20,
                         file="enrichment.html"): ...
     def report(self, out="prprin_report.html"): ...   # stitches the three together
 
 
 if __name__ == "__main__":
-    pass
+    ex_metrics = pd.read_csv(DATA_DIR / "ex_large_node_data.csv", index_col="stringId")
+    # print(ex_metrics)
+    metrics_clustermap(ex_metrics, hub_method="is hub (consensus)", metrics_to_show="all", normalize=True)
