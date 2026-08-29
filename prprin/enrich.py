@@ -23,8 +23,10 @@ class EnrichPPI:
         is already stored in 'enrichment'. This way several enrichments can be
         calculated on the same object and told apart afterwards.
 
-        The enrichment can yield no result at all. In that case a warning is
-        printed.
+        The enrichment can yield no result at all, and the chosen hub selection
+        can itself be empty (a hub method can select no protein). In both cases
+        a warning is printed, and an empty selection is skipped without adding
+        anything to 'enrichment'.
 
         The species used is the one stored in the 'specie_id' container.
 
@@ -76,26 +78,35 @@ class EnrichPPI:
             selected_hub_mask = [col for col in self.node_data.columns if "is hub" in col][0]
         else:
             selected_hub_mask = hub_method
+        hub_ids = self.node_data.loc[self.node_data[selected_hub_mask]].index
+
+        # empty selection warning. A hub method can select no protein at all (the "sd" and
+        # the "consensus" ones already warn about it), and STRING answers a bad request to
+        # an enrichment asked on no protein, so the run is skipped instead of stopping the
+        # whole analysis on a result that is legitimately empty
+        if len(hub_ids) == 0:
+            print(f"\nWarning: '{selected_hub_mask}' selects no protein, so no enrichment was calculated for it\n")
+            return self
 
         # enrichment calculation
         hub_method_str = selected_hub_mask[selected_hub_mask.rfind("("):selected_hub_mask.rfind(")")+1]
         if isinstance(background, str) and background == "network":
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index, 
+            enrichment = stringdb.get_enrichment(hub_ids,
                                                       self.node_data.index,
                                                       self.specie_id)
-            
+
             run_name = f"hubs {hub_method_str} vs {background}"
         elif isinstance(background, str) and background == "genome":
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index,
+            enrichment = stringdb.get_enrichment(hub_ids,
                                                       species=self.specie_id)
             run_name = f"hubs {hub_method_str} vs {background}"
         elif isinstance(background, pd.DataFrame):
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index, 
+            enrichment = stringdb.get_enrichment(hub_ids,
                                                       background.index,
                                                       self.specie_id)
             run_name = f"hubs {hub_method_str} vs custom background"
         else:
-            enrichment = stringdb.get_enrichment(self.node_data.loc[self.node_data[selected_hub_mask]].index, 
+            enrichment = stringdb.get_enrichment(hub_ids,
                                                       background,
                                                       self.specie_id)
             run_name = f"hubs {hub_method_str} vs custom background"
