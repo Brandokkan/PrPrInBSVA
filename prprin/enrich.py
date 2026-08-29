@@ -59,8 +59,13 @@ class EnrichPPI:
             raise ValueError("there are no hubs saved in the 'hubs' container. Run find_hubs() first")
         if hub_method is None and len([col for col in self.node_data.columns if "is hub" in col]) != 1:
             raise ValueError("there is not one single 'is_hub' boolean mask in 'node_data'. Please select one specific mask in hub_method")
+        if hub_method is not None and not isinstance(hub_method, str):
+            raise TypeError("hub_method must be a string telling the 'is hub (method)' column to use, or None")
         if isinstance(hub_method, str) and hub_method not in self.node_data.columns:
             raise ValueError("hub_method is not a column present in 'node_data'. Duble check what method was used in find_hubs()")
+        if isinstance(hub_method, str) and not pd.api.types.is_bool_dtype(self.node_data[hub_method]):
+            raise TypeError(f"the column '{hub_method}' is not a boolean mask, so it cannot be used to select the hubs. "
+                            f"hub_method must be one of {[col for col in self.node_data.columns if 'is hub' in col]}")
         if not isinstance(background, (str, list, tuple, pd.DataFrame, pd.Series)):
             raise TypeError("background must be one of: str, list, tuple, pd.DataFrame or pd.Series")
         if isinstance(background, str) and background not in POSSIBLE_ENRICHMENT_BACKGROUND_STR:

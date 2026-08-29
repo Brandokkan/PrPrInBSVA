@@ -556,8 +556,9 @@ def metrics_clustermap(metrics, metrics_to_show="absolute", normalize=False, hub
 
     Returns
     -------
-    pathlib.Path
-        The path of the written image
+    pathlib.Path or None
+        The path of the written image, or None if the selection is too small to
+        be clustered
     """
     # input check
     if not isinstance(metrics, pd.DataFrame):
@@ -597,6 +598,13 @@ def metrics_clustermap(metrics, metrics_to_show="absolute", normalize=False, hub
     else:
         used_cols = metrics_to_show
     print(f"\nThe selected metrics for the clustermap are: {used_cols}\n")
+
+    # too small warning. The clustermap groups both the proteins and the metrics, and the
+    # linkage needs at least two of them on each side to be computed
+    if len(symbol_idx_metrics) < 2 or len(used_cols) < 2:
+        print(f"\nWarning: the clustermap needs at least 2 proteins and 2 metrics, but {len(symbol_idx_metrics)} "
+              f"proteins and {len(used_cols)} metrics were selected, nothing was plotted\n")
+        return None
 
     # what hub method to show if at all
     if hub_method is not None: 

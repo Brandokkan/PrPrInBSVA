@@ -137,7 +137,9 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
         Tells the function which columns of node_data are used as metrics.
 
         It accepts four kinds of values:
-            - "all", to use every metric column present in node_data.
+            - "all", to use every metric column present in node_data (the
+            "is hub (method)" masks left by the previous calls are not metrics,
+            so they are never used).
             - "unweighted", to use only the un-weighted metric columns.
             - any other string, to use every metric column whose name contains
             it (for example "degree" or "score").
@@ -179,15 +181,26 @@ def hubs_by_consensus(node_data, metrics="all", k=10, how="intersection", verbos
     if how not in ("sum", "intersection"):
         raise ValueError("must be either 'sum' or 'intersection'")
 
-    # convert metrics into the actually used columns for convenience
+    # convert metrics into the actually used columns for convenience. The "is hub (method)"
+    # masks left in node_data by the previous calls are results, not metrics, so they are
+    # kept out of the ranking (otherwise a hub selection would feed into the next one)
+    metric_cols = [col for col in node_data.columns if col not in NAME_COLUMNS and "is hub" not in col]
     if metrics == "all":
-        used_cols = [col for col in node_data.columns if col not in NAME_COLUMNS]
+        used_cols = metric_cols
     elif metrics == "unweighted":
-        used_cols = [col for col in node_data.columns if col in UNWEIGHTED_COLUMNS]
+        used_cols = [col for col in metric_cols if col in UNWEIGHTED_COLUMNS]
     elif not isinstance(metrics, list):
-        used_cols = [col for col in node_data.columns if metrics in col]
+        used_cols = [col for col in metric_cols if metrics in col]
     else:
         used_cols = metrics.copy()
+
+    # a selection matching no column would leave every node in the ranking, so every
+    # protein would silently be called a hub
+    unknown_cols = [col for col in used_cols if col not in metric_cols]
+    if unknown_cols:
+        raise ValueError(f"the metrics {unknown_cols} are not metric columns of node_data. The metric columns present in node_data are:\n{metric_cols}")
+    if not used_cols:
+        raise ValueError(f"'{metrics}' does not select any metric of node_data. The metric columns present in node_data are:\n{metric_cols}")
     print(f"\nThe selected metrics for the consensus method for finding hub proteins are: {used_cols}\n")
 
     # find hubs
