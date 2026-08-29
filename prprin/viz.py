@@ -4,6 +4,7 @@ import seaborn as sns
 import networkx as nx
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from matplotlib import colormaps
 from matplotlib.colors import Normalize, to_hex
 from pyvis.network import Network
@@ -14,6 +15,9 @@ PLOTS_DIR = BASE_DIR / "plots" # plots path safe for inter-machine operability
 
 SYMBOL_COL_NAME = "symbol"
 UNWEIGHTED_COLUMNS = ["degree", "degree centrality", "betweenness centrality", "clustering coefficient"]
+# columns of the enrichment table (the one outputed by stringdb.get_enrichment()) needed to plot it
+ENRICHMENT_COLUMNS = ["category", "term", "description", "number_of_genes",
+                      "number_of_genes_in_background", "fdr", "run"]
 # colors used when a boolean column (like the "is hub (method)" masks) is mapped on the nodes
 BOOL_COLORS = {True: "#d62728", False: "#c6d5e3"}
 DEFAULT_COLOR = "#97c2fc"   # color of the nodes when no coloring column is given
@@ -331,7 +335,9 @@ def relabel_select_menu(html, id_to_label):
         The HTML page with the node select menu relabeled
     """
     def _relabel_options(select_block):
+        """Swap the displayed text of every <option> of the matched <select> block"""
         def _relabel_option(option_match):
+            """Keep the value of the matched <option> and relabel its text"""
             node_id = option_match.group(1)
             label = id_to_label.get(node_id, node_id)
             return f'<option value="{node_id}">{label}</option>'
@@ -508,24 +514,68 @@ def plot_a_graph(graph, node_data, color_by=None, size_by="degree", highlight=No
 
 def metrics_clustermap(metrics, metrics_to_show="absolute", normalize=False, hub_method=None, file="clustermap.png",
                        weight_used="score"):
+    """Plot a clustered heatmap of the metrics of the nodes
 
+    This function draws a seaborn clustermap of the chosen metrics, where every
+    row is a protein (labelled with its symbol) and every column a metric, so
+    that the proteins behaving in a similar way in the network end up close to
+    each other in the row dendrogram.
+
+    Parameters
+    -------
+    metrics: pandas.DataFrame
+        The DataFrame containing the metrics associated to each node. The one
+        stored in the 'node_data' container.
+
+    metrics_to_show: str or list
+        It tells which metrics are drawn as the columns of the clustermap.
+
+        "all" takes every metric, "absolute" (default) the non normalized ones
+        (degree and weighted degree), "relative" all the remaining ones, and
+        "unweighted" the metrics calculated without the edge weights. Any other
+        string keeps the metrics whose name contains it (ex "betweenness"),
+        and a list is used as the column names themselves.
+
+    normalize: bool
+        If True, every metric is rescaled inside the [0, 1] range before the
+        clustering, so that metrics with different orders of magnitude (ex the
+        degree and the clustering coefficient) stay comparable.
+
+    hub_method: str or None
+        The name of an "is hub (method)" boolean column of metrics, drawn as a
+        color strip beside the rows to show where the hubs ended up in the
+        clustering. If None, no strip is drawn.
+
+    file: str or pathlib.Path
+        Name of the written image. Relative names are saved in the 'plots'
+        folder of the project.
+
+    weight_used: str
+        The name of the score used as the weight of the edges of the graph. It
+        is the one indicated between parentheses in the metric column names.
+
+    Returns
+    -------
+    pathlib.Path
+        The path of the written image
+    """
     # input check
     if not isinstance(metrics, pd.DataFrame):
-        TypeError("metrics must be a pandas DataFrame")
+        raise TypeError("metrics must be a pandas DataFrame")
     if not isinstance(metrics_to_show, (str, list)):
-        TypeError("metrics_to_show must be a string or a list")
+        raise TypeError("metrics_to_show must be a string or a list")
     if not isinstance(normalize, bool):
-        TypeError("normalize must be a boolean")
+        raise TypeError("normalize must be a boolean")
     if not isinstance(hub_method, str) and hub_method is not None:
-        TypeError("hub_method must be a string or None")
-    if hub_method not in [col for col in metrics.columns if "is hub" in col]:
-        ValueError("hub_method must be the name of a column telling if a protein is a hub or not")
-    if not isinstance(file, str):
-        TypeError("file must be a string containig the name of the clustermap file")
+        raise TypeError("hub_method must be a string or None")
+    if hub_method is not None and hub_method not in [col for col in metrics.columns if "is hub" in col]:
+        raise ValueError("hub_method must be the name of a column telling if a protein is a hub or not")
+    if not isinstance(file, (str, Path)):
+        raise TypeError("file must be a string containig the name of the clustermap file")
     if not isinstance(weight_used, str):
-        TypeError("weight_used must be a string telling the attribute used as the weight in the graph")
+        raise TypeError("weight_used must be a string telling the attribute used as the weight in the graph")
     if not any([weight_used in col for col in metrics.columns]):
-        ValueError("weight_used value is not the current one being used as the weights")
+        raise ValueError("weight_used value is not the current one being used as the weights")
 
     # preparing metrics for plotting
     symbol_idx_metrics = metrics.set_index("symbol") # to show symbols instead of stringId in the plot
@@ -546,7 +596,7 @@ def metrics_clustermap(metrics, metrics_to_show="absolute", normalize=False, hub
         used_cols = [col for col in cols_without_hubs if metrics_to_show in col]
     else:
         used_cols = metrics_to_show
-    print(f"\nThe selected metrics for the consensus method for finding hub proteins are: {used_cols}\n")
+    print(f"\nThe selected metrics for the clustermap are: {used_cols}\n")
 
     # what hub method to show if at all
     if hub_method is not None: 
@@ -557,13 +607,159 @@ def metrics_clustermap(metrics, metrics_to_show="absolute", normalize=False, hub
 
     # clustermap creation
     clustermap = sns.clustermap(symbol_idx_metrics[used_cols], row_colors=row_colors, standard_scale=1 if normalize else None)
-    
+
     # graph saving
     path_file = Path(file)
     if not path_file.is_absolute():
         PLOTS_DIR.mkdir(parents=True, exist_ok=True)
         path_file = PLOTS_DIR / path_file
     clustermap.savefig(path_file)
+    plt.close(clustermap.figure)
+
+    return path_file
+
+
+def enrichment_dotplot(enrichment, run=None, category="Process", top_n=20, file="enrichment.png",
+                       cmap="viridis_r", label_width=60, verbose=False):
+    """Plot the enriched terms of a functional enrichment as a dot plot
+
+    This function draws a seaborn dot plot of the enrichment, where every row is
+    an enriched term and every dot carries three values at once: the gene ratio
+    (how much of the term is covered by the analysed proteins) on the x axis,
+    the number of proteins hitting the term as the size of the dot, and the
+    significance (-log10 of the fdr) as its color.
+
+    When more than one enrichment run is plotted, the runs are drawn side by
+    side as different panels, so that the results of different hub selection
+    methods (or of different backgrounds) can be compared directly.
+
+    Parameters
+    -------
+    enrichment: pandas.DataFrame
+        The enrichment table. The one stored in the 'enrichment' container.
+
+    run: str, iterable or None
+        The name (or names) of the enrichment runs to plot, as they are written
+        in the 'run' column added by enrich(). If None (default), every run
+        present in the table is plotted.
+
+    category: str, iterable or None
+        The category (or categories) of terms to plot, as they are written in
+        the 'category' column (ex "Process", "KEGG", "Component", "RCTM").
+        "all" (or None) keeps every category.
+
+    top_n: int
+        The number of most significant terms kept for every run. Must be a
+        positive integer.
+
+    file: str or pathlib.Path
+        Name of the written image. Relative names are saved in the 'plots'
+        folder of the project.
+
+    cmap: str
+        The name of the matplotlib color map used for the significance. The
+        reversed maps (ex the default "viridis_r") give the darkest color to
+        the most significant terms.
+
+    label_width: int
+        The descriptions of the terms are cut to this number of characters, so
+        that the long ones do not squeeze the plot.
+
+    Returns
+    -------
+    pathlib.Path or None
+        The path of the written image, or None if the selection left no term
+    """
+    # input check
+    if not isinstance(enrichment, pd.DataFrame):
+        raise TypeError("enrichment must be a pandas DataFrame. Structured like the one contained in 'enrichment'")
+    missing_columns = [col for col in ENRICHMENT_COLUMNS if col not in enrichment.columns]
+    if missing_columns:
+        raise ValueError(f"the enrichment table misses the columns {missing_columns}. It must be the one outputed by enrich()")
+    if not (isinstance(top_n, int) and not isinstance(top_n, bool)) or top_n <= 0:
+        raise TypeError("top_n must be a positive integer value")
+    if not isinstance(file, (str, Path)):
+        raise TypeError("file must be a string containig the name of the dot plot file")
+    if not isinstance(cmap, str):
+        raise TypeError("cmap must be a string telling the matplotlib color map to use")
+
+    plot_data = enrichment.copy()
+
+    # run selection
+    if run is not None:
+        wanted_runs = [run] if isinstance(run, str) else list(run)
+        unknown_runs = [name for name in wanted_runs if name not in set(plot_data["run"])]
+        if unknown_runs:
+            raise ValueError(f"the runs {unknown_runs} are not present in the enrichment table. The runs it contains are:\n{list(dict.fromkeys(plot_data['run']))}")
+        plot_data = plot_data.loc[plot_data["run"].isin(wanted_runs)]
+
+    # category selection
+    if category is not None and category != "all":
+        wanted_categories = [category] if isinstance(category, str) else list(category)
+        plot_data = plot_data.loc[plot_data["category"].isin(wanted_categories)]
+
+    # empty warning
+    if len(plot_data) == 0:
+        print(f"\nWarning: no enriched term is left after selecting the run {run} and the category {category}, nothing was plotted\n")
+        return None
+
+    # plotted values. The fdr can be exactly zero, which would give an infinite -log10, so
+    # the zeros are floored one order of magnitude below the smallest non zero fdr
+    plot_data["gene ratio"] = plot_data["number_of_genes"] / plot_data["number_of_genes_in_background"]
+    non_zero_fdr = plot_data.loc[plot_data["fdr"] > 0, "fdr"]
+    fdr_floor = non_zero_fdr.min() / 10 if len(non_zero_fdr) > 0 else 1e-300
+    plot_data["-log10(fdr)"] = -np.log10(plot_data["fdr"].clip(lower=fdr_floor))
+
+    # only the most significant terms of every run are kept
+    plot_data = plot_data.sort_values(["fdr", "gene ratio"], ascending=[True, False])
+    plot_data = plot_data.groupby("run", sort=False, group_keys=False).head(top_n)
+
+    # y labels. The descriptions are cut, and the ones that collide after the cut are
+    # told apart by their term identifier. A description repeated over several runs is
+    # not a collision: it has to stay one single row shared by the panels
+    plot_data["label"] = plot_data["description"].astype(str).str.slice(0, label_width)
+    terms_per_label = plot_data.groupby("label")["term"].nunique()
+    collisions = plot_data["label"].map(terms_per_label) > 1
+    plot_data.loc[collisions, "label"] = (plot_data.loc[collisions, "label"]
+                                          + " (" + plot_data.loc[collisions, "term"].astype(str) + ")")
+    # the terms are drawn from the most to the least covered one
+    label_order = plot_data.groupby("label", observed=True)["gene ratio"].max().sort_values(ascending=False).index
+    plot_data["label"] = pd.Categorical(plot_data["label"], categories=label_order, ordered=True)
+
+    # dot plot creation. The runs are drawn as different panels only when there are several
+    plotted_runs = list(dict.fromkeys(plot_data["run"]))
+    grid = sns.relplot(
+        data=plot_data,
+        x="gene ratio",
+        y="label",
+        hue="-log10(fdr)",
+        size="number_of_genes",
+        col="run" if len(plotted_runs) > 1 else None,
+        palette=cmap,
+        sizes=(40, 300),
+        height=max(4.0, 0.32 * len(label_order)),
+        aspect=1.1 if len(plotted_runs) > 1 else 1.6,
+        facet_kws={"sharey": True},
+    )
+    grid.set_axis_labels("gene ratio (genes of the term found / genes of the term in the background)", "")
+    if len(plotted_runs) == 1:
+        grid.figure.suptitle(plotted_runs[0])
+    for ax in grid.axes.flat:
+        ax.grid(axis="y", linestyle=":", alpha=0.6)
+        ax.set_axisbelow(True)
+    grid.figure.tight_layout()
+
+    # graph saving
+    path_file = Path(file)
+    if not path_file.is_absolute():
+        PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+        path_file = PLOTS_DIR / path_file
+    grid.savefig(path_file, dpi=150, bbox_inches="tight")
+    plt.close(grid.figure)
+
+    if verbose:
+        print(f"dot plot of {len(plot_data)} enriched terms over {len(plotted_runs)} runs written in {path_file}")
+    return path_file
 
 
 class VizPPI:
@@ -636,7 +832,39 @@ class VizPPI:
         return self
 
     def plot_metrics(self, metrics_to_show="absolute", normalize=False, hub_method=None, file="clustermap.png"):
+        """Plot a clustered heatmap of the metrics of the network
 
+        This method writes an image of a clustermap of the metrics stored in
+        the 'node_data' container, where every row is a protein (labelled with
+        its symbol) and every column a metric, so that the proteins behaving in
+        a similar way in the network end up close to each other in the row
+        dendrogram.
+
+        Parameters
+        -------
+        metrics_to_show: str or list
+            It tells which metrics are drawn as the columns of the clustermap.
+
+            "all" takes every metric, "absolute" (default) the non normalized
+            ones (degree and weighted degree), "relative" all the remaining
+            ones, and "unweighted" the metrics calculated without the edge
+            weights. Any other string keeps the metrics whose name contains it
+            (ex "betweenness"), and a list is used as the column names.
+
+        normalize: bool
+            If True, every metric is rescaled inside the [0, 1] range before
+            the clustering, so that metrics with different orders of magnitude
+            (ex the degree and the clustering coefficient) stay comparable.
+
+        hub_method: str or None
+            The name of an "is hub (method)" boolean column of 'node_data',
+            drawn as a color strip beside the rows to show where the hubs ended
+            up in the clustering. If None, no strip is drawn.
+
+        file: str or pathlib.Path
+            Name of the written image. Relative names are saved in the 'plots'
+            folder of the project.
+        """
         # input check
         if not isinstance(self.node_data, pd.DataFrame):
             raise ValueError("there is no node data saved in the 'node_data' container. Run calculate_metrics() first")
@@ -644,9 +872,57 @@ class VizPPI:
         # metrics creation adn saving
         metrics_clustermap(self.node_data, metrics_to_show, normalize, hub_method, file, weight_used=self.used_weight_name)
 
-    def plot_enrichment(self, run=None, category="Process", top_n=20,
-                        file="enrichment.html"): ...
-    def report(self, out="prprin_report.html"): ...   # stitches the three together
+        return self
+
+    def plot_enrichment(self, run=None, category="Process", top_n=20, file="enrichment.png",
+                        cmap="viridis_r"):
+        """Plot the enriched terms of the network as a dot plot
+
+        This method writes an image of a dot plot of the enrichment stored in
+        the 'enrichment' container, where every row is an enriched term and
+        every dot carries three values at once: the gene ratio (how much of the
+        term is covered by the hub proteins) on the x axis, the number of
+        proteins hitting the term as the size of the dot, and the significance
+        (-log10 of the fdr) as its color.
+
+        When enrich() was run more than once, the runs are drawn side by side
+        as different panels, so that the results of different hub selection
+        methods (or of different backgrounds) can be compared directly.
+
+        Parameters
+        -------
+        run: str, iterable or None
+            The name (or names) of the enrichment runs to plot, as they are
+            written in the 'run' column of 'enrichment' (ex "hubs (consensus)
+            vs network"). If None (default), every run is plotted.
+
+        category: str, iterable or None
+            The category (or categories) of terms to plot, as they are written
+            in the 'category' column (ex "Process", "KEGG", "Component",
+            "RCTM"). "all" (or None) keeps every category.
+
+        top_n: int
+            The number of most significant terms kept for every run. Must be a
+            positive integer.
+
+        file: str or pathlib.Path
+            Name of the written image. Relative names are saved in the 'plots'
+            folder of the project.
+
+        cmap: str
+            The name of the matplotlib color map used for the significance. The
+            reversed maps (ex the default "viridis_r") give the darkest color
+            to the most significant terms.
+        """
+        # input check
+        if not isinstance(self.enrichment, pd.DataFrame):
+            raise ValueError("there is no enrichment saved in the 'enrichment' container. Run enrich() first")
+
+        # dot plot creation and saving
+        enrichment_dotplot(self.enrichment, run=run, category=category, top_n=top_n,
+                           file=file, cmap=cmap)
+
+        return self
 
 
 if __name__ == "__main__":
