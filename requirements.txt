@@ -1,0 +1,25 @@
+# Dependencies of prprin. Install them with:
+#
+#     pip install -r requirements.txt
+#
+# Only the packages imported by the project are listed: pip resolves the rest
+# (scipy, needed by seaborn to cluster the metrics, and requests, needed by
+# stringdb to reach the STRING web API).
+#
+# The lower bounds are the versions the features actually used need, and the
+# project was developed and tested on Python 3.13 with the newest release of
+# each of them.
+
+stringdb>=0.1.5
+pandas>=1.5
+numpy>=1.23
+networkx>=3.0
+matplotlib>=3.6
+seaborn>=0.12
+
+# pyvis is kept on the 0.3 line on purpose: viz.py patches the HTML page that
+# pyvis generates (it drops the heading the bundled template writes twice and
+# relabels the node select menu with the gene symbols), and that patching is
+# written against the template of this version. A newer template would not
+# break the plot, but those two fixes would silently stop being applied.
+pyvis>=0.3.2,<0.4
