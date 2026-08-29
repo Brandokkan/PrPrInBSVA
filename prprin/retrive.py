@@ -179,7 +179,7 @@ def get_unique_proteins(ppi_df, verbose=False):
 
 # TODO: consider adding deletion mode
 class RetrivePPI:
-    def get_raw_data(self, input_proteins=None, mode="replace", **kwargs):
+    def get_raw_data(self, input_proteins=None, **kwargs):
         """ Asks the user to input the proteins of interest and assigns the
         protein-protein interactiond ata to the relative container
 
@@ -190,35 +190,18 @@ class RetrivePPI:
 
         Parameters
         -------
-        mode: str
-            must be one of 'add', 'a', 'replace' or 'r'.
-
-            replace mode: replaces the current protein-protein interaction
-            data (if any) with the inputed one.
-
         input_proteins: str or None
                 The identifiers of the protein separated by spaces or the name
                 of a file in the 'data' folder containing the identifiers (one
                 identifier per line)
         """
-        #input check
-        add_str = ("add", "a")
-        replace_str = ("replace", "r")
-        if not isinstance(mode, str):
-            raise TypeError("mode must be a string")
-        if mode not in add_str + replace_str:
-            raise ValueError(f"mode must be one of 'add', 'a', 'replace' or 'r'. Got {mode} instead.")
 
         # protein data retrival and asignment
         network_df = interaction_retrival(input_proteins, **kwargs)
         unique_proteins = get_unique_proteins(network_df)
         self.specie_id = kwargs.get("species", 9606)
-        if mode in replace_str: # replace mode
-            self.proteins = unique_proteins
-            self.network = network_df
-        elif mode in add_str:   # addition mode
-            pass    # TODO: consider implement addition mode
-
+        self.proteins = unique_proteins
+        self.network = network_df
 
         return self # enables chaning multiple methods togheter in the final object
 

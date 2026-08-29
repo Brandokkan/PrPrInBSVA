@@ -1,6 +1,5 @@
 from .core import PrPrInCore
 from .retrive import RetrivePPI
-# from .mapping import MappingMixin
 from .graph import GraphPPI
 from .metrics import MetricsPPI
 from .hubs import HubsPPI
